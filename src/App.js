@@ -28,6 +28,7 @@ class App extends Component {
         const axisProps = new AxisProperties();
         const axes = createAxes(axisProps);
 
+        // noinspection JSCheckFunctionSignatures
         const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
         scene.add(cube);
         scene.add(...axes);
