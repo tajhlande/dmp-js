@@ -11,7 +11,7 @@ log.setLevel("debug");
 export class AxisProperties {
     constructor() {
         //defaults
-        this.axisLength = 5; // from origin
+        this.axisLength = 50; // from origin
         this.axisThickness = 0.0012;
         this.xColor = new Color().setHex(0xFF0000);
         this.yColor = new Color().setHex(0x00FF00);
