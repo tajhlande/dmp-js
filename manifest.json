@@ -1,0 +1,8 @@
+{
+  "short_name": "dmp-js",
+  "name": "Digital Math Playground in Javascript",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#000000"
+}
