@@ -16,9 +16,9 @@ export class AxisProperties {
         this.xColor = new Color().setHex(0xFF0000);
         this.yColor = new Color().setHex(0x00FF00);
         this.zColor = new Color().setHex(0x0000FF);
-        this.ticksEvery = 1;
-        this.tickLength = 0.04; // from axis
-        this.tickThickness = 0.0006;
+        this.ticksEvery = 10;
+        this.tickLength = 0.4; // from axis
+        this.tickThickness = 0.0012;
     }
 }
 

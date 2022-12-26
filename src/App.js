@@ -7,16 +7,12 @@ import {GPUStatsPanel} from 'three/examples/jsm/utils/GPUStatsPanel.js';
 import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
 import {AxisProperties, createAxes} from "./axes";
 import {Color, Vector3} from "three";
-import {LineMaterial} from "three/addons/lines/LineMaterial";
-import {LineGeometry} from "three/addons/lines/LineGeometry";
-import {Line2} from "three/addons/lines/Line2";
+import {LineMaterial} from 'three/examples/jsm/lines/LineMaterial';
+import {LineGeometry} from 'three/examples/jsm/lines/LineGeometry';
+import {Line2} from 'three/examples/jsm/lines/Line2';
 
 
 let gui = new GUI();
-
-const cubeScaleParam = {
-    'cube scale': 1
-};
 
 const lorenzParams = {
     // lorenz used the values σ = 10, β = 8/3 and ρ = 28, so these are our defaults
@@ -28,43 +24,53 @@ const lorenzParams = {
 
 const controlParams = {
     'running': false,
-    'iterations': 0
+    'iterations': 0,
+    'maxIterations': 100000,
+    'graphColor' : 0xFFFF00
 }
 
 let lzPos = new Vector3(0.1, 0.1, 0.1);
 
 const lorenzMaterial = new LineMaterial( {
-    color: new Color().setHex(0xFFFF00),
+    color: new Color().setHex(controlParams.graphColor),
     linewidth: 0.0024, // in world units with size attenuation, pixels otherwise
     vertexColors: false,
     dashed: false,
     alphaToCoverage: true,
 } );
 
-const lorenzLineList = [];
-
 const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({antialias: true});
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 let lorenzRoot = new THREE.Object3D();
 
-function resetLorenz() {
-    console.log("Resetting...");
+function resetLorenzGraph() {
+    console.log("Resetting graph");
     controlParams.running = false;
-    //scene.remove(lorenzLineList);
     scene.remove(lorenzRoot);
-    // for (const lzLine in lorenzLineList) {
-    //     scene.remove(lzLine);
-    // }
     lorenzRoot = new THREE.Object3D();
     scene.add(lorenzRoot);
-    lorenzLineList.length = 0;
     controlParams.iterations = 0;
     lzPos = new Vector3(0.1, 0.1, 0.1);
     renderer.render(scene, camera);
 }
 
-controlParams.reset = resetLorenz;
+function resetLorenzParameters() {
+    console.log("Resetting Lorenz parameters to defaults");
+    controlParams.running = false;
+    lorenzParams.sigma = 10;
+    lorenzParams.beta = 8/3;
+    lorenzParams.rho = 28;
+    lorenzParams.dt = 0.01;
+}
+
+function setGraphColor() {
+    console.log(`Setting graph color to ${controlParams.graphColor}`);
+    lorenzMaterial.color = new Color().setHex(controlParams.graphColor);
+}
+
+controlParams.resetGraph = resetLorenzGraph;
+controlParams.resetParameters = resetLorenzParameters;
 
 function advanceLorentz(lPos, lParams) {
     const x_dot = lParams.sigma * (lPos.y - lPos.x);
@@ -81,8 +87,15 @@ function advanceLorentz(lPos, lParams) {
 }
 
 class App extends Component {
-    componentDidMount() {
 
+    updateDimensions = () => {
+        this.setState({ width: window.innerWidth, height: window.innerHeight });
+        camera.aspect = window.innerWidth / window.innerHeight;
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.render(scene, camera);
+    };
+    componentDidMount() {
+        window.addEventListener('resize', this.updateDimensions);
         const controls = new OrbitControls(camera, renderer.domElement);
 
 //      renderer.setPixelRatio( window.devicePixelRatio );
@@ -91,28 +104,21 @@ class App extends Component {
         // document.body.appendChild( renderer.domElement );
         // use ref as a mount point of the Three.js scene instead of the document.body
         this.mount.appendChild(renderer.domElement);
-        const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const cubeMaterial = new THREE.MeshMatcapMaterial({color: 0x00ffff});
 
         const axisProps = new AxisProperties();
         const axes = createAxes(axisProps);
 
-        // noinspection JSCheckFunctionSignatures
-        const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-        //scene.add(cube);
         scene.add(...axes);
         scene.add(lorenzRoot);
 
-        camera.position.z = 100;
+        camera.position.z = 120;
         controls.update();
 
 
         let animate = function () {
             stats.begin();
-            cube.rotation.x += 0.01;
-            cube.rotation.y += 0.01;
 
-            if (controlParams.running) {
+            if (controlParams.running && controlParams.iterations < controlParams.maxIterations) {
                 const prevLzPos = lzPos;
                 lzPos = advanceLorentz(lzPos, lorenzParams);
                 //console.log(`New Lorentz point: (${lzPos.x}, ${lzPos.y}, ${lzPos.z}`);
@@ -127,9 +133,11 @@ class App extends Component {
                 const lorenzLine = new Line2(geometry, lorenzMaterial);
                 lorenzLine.computeLineDistances();
                 lorenzLine.scale.set(1, 1, 1);
-                lorenzLineList.push(lorenzLine);
                 lorenzRoot.add(lorenzLine);
                 controlParams.iterations++;
+            }
+            else if (controlParams.iterations >= controlParams.maxIterations) {
+                controlParams.running = false;
             }
 
             requestAnimationFrame(animate);
@@ -139,16 +147,17 @@ class App extends Component {
 
         };
 
-        gui.add(cubeScaleParam, 'cube scale', 0.01, 10).onChange( function(val) {
-            cube.scale.setScalar(val);
-        });
-        gui.add(controlParams, 'running').listen();
-        gui.add(controlParams, 'iterations').disable().listen();
-        gui.add(controlParams, 'reset');
-        gui.add(lorenzParams, 'sigma', 0.0001, 20, 0.1);
-        gui.add(lorenzParams, 'beta', 0.0001, 10, 0.001);
-        gui.add(lorenzParams, 'rho', 0.0001, 100, 1);
-        gui.add(lorenzParams, 'dt', 0.001, 0.03, 0.001);
+        gui.title("Lorentz Attractor Controls");
+        gui.add(controlParams, 'running').name("Running").listen();
+        gui.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
+        gui.add(controlParams, 'iterations').name("Iterations").disable().listen();
+        gui.add(controlParams, 'maxIterations', [1000, 10000, 100000, 1000000]).name("Max Iterations");
+        gui.add(controlParams, 'resetGraph').name("Reset Graph");
+        gui.add(lorenzParams, 'sigma', 0.0001, 20, 0.1).listen();
+        gui.add(lorenzParams, 'beta', 0.0001, 10, 0.001).listen();
+        gui.add(lorenzParams, 'rho', 0.0001, 100, 1).listen();
+        gui.add(lorenzParams, 'dt', 0.001, 0.03, 0.001).listen();
+        gui.add(controlParams, 'resetParameters').name("Reset Parameters");
 
 
         const stats = new Stats();
