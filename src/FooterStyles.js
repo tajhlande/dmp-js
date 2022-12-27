@@ -1,16 +1,16 @@
 import styled from 'styled-components';
 
 export const Box = styled.div`
-  padding: 10px 10px;
+  padding: 7px 7px;
   background: black;
   position: absolute;
   bottom: 0;
-  width: 100%;
+  //width: 100%;
   font-size: small;
   
-   
+  // kicks in on narrow screens, i.e. mobile 
   @media (max-width: 1000px) {
-    padding: 70px 30px;
+    padding: 7px 7px;
   }
 `;
 export const FooterLink = styled.a`
