@@ -11,6 +11,7 @@ import {LineMaterial} from 'three/examples/jsm/lines/LineMaterial';
 import {LineGeometry} from 'three/examples/jsm/lines/LineGeometry';
 import {Line2} from 'three/examples/jsm/lines/Line2';
 import * as loglevel from "loglevel";
+import Footer from "./Footer";
 
 const log = loglevel.getLogger("lorenz");
 
@@ -238,7 +239,10 @@ class App extends Component {
 
     render() {
         return (
-            <div ref={ref => (this.mount = ref)}/>
+            <div>
+                <div ref={ref => (this.mount = ref)}/>
+                <Footer />
+            </div>
         )
     }
 
