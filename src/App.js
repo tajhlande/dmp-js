@@ -38,7 +38,9 @@ const controlParams = {
     'iterationsPerFrame': 1,
     'lineThickness': 0.0024,
     'opacity': 1.0,
-    'graphColor' : 0xFFFF00
+    'graphColor' : 0xFFFF00,
+    'showCursor' : true,
+    'showAxes': true
 }
 
 let lzPos = new Vector3().copy( defaultStartPoint);
@@ -59,10 +61,16 @@ let lorenzLine = new Line2(lineGeometry, lorenzMaterial);
 lorenzLine.scale.setScalar(1);
 lorenzLine.computeLineDistances();
 
+const cursorGeometry = new THREE.SphereGeometry( controlParams.lineThickness * 200, 8, 8 );
+const cursorMaterial = new THREE.MeshBasicMaterial( { color: 0xff00ff } );
+const cursor = new THREE.Mesh( cursorGeometry, cursorMaterial );
+cursor.position.copy(lzPos);
+
 const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({antialias: true});
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 let lorenzRoot = new THREE.Object3D();
+let axesRoot = new THREE.Object3D();
 
 
 function resetLorenzGraph() {
@@ -107,6 +115,18 @@ function setOpacity() {
     lorenzMaterial.opacity = controlParams.opacity;
 }
 
+function updateCursorVisibility() {
+    log.debug(`Setting cursor visibility to ${controlParams.showCursor}`);
+    cursor.visible = controlParams.showCursor;
+}
+
+function updateAxesVisibility() {
+    log.debug(`Setting axes visibility to ${controlParams.showAxes}`);
+    axesRoot.visible = controlParams.showAxes;
+}
+
+
+// set up gui button callbacks
 controlParams.resetGraph = resetLorenzGraph;
 controlParams.resetParameters = resetLorenzParameters;
 
@@ -148,9 +168,11 @@ class App extends Component {
         const axisProps = new AxisProperties();
         const axes = createAxes(axisProps);
 
-        scene.add(...axes);
+        axesRoot.add(...axes);
+        scene.add(axesRoot);
         scene.add(lorenzRoot);
         lorenzRoot.add(lorenzLine);
+        scene.add(cursor);
 
         camera.position.z = 120;
         controls.update();
@@ -161,11 +183,8 @@ class App extends Component {
 
             if (controlParams.running && controlParams.iterations < controlParams.maxIterations) {
                 for (let i = 0; i < controlParams.iterationsPerFrame && controlParams.iterations < controlParams.maxIterations; i++) {
-                    const prevLzPos = lzPos;
                     lzPos = advanceLorenz(lzPos, lorenzParams);
-
                     lpts.push(lzPos.x, lzPos.y, lzPos.z);
-
                     controlParams.iterations++;
                 }
                 lineGeometry = new LineGeometry();
@@ -175,6 +194,7 @@ class App extends Component {
                 lorenzLine.scale.setScalar(1);
                 lorenzLine.computeLineDistances();
                 lorenzRoot.add(lorenzLine);
+                cursor.position.copy(lzPos);
             }
             else if (controlParams.iterations >= controlParams.maxIterations) {
                 controlParams.running = false;
@@ -195,6 +215,8 @@ class App extends Component {
         gui.add(controlParams, 'lineThickness', 0.0001, 0.0100, 0.0001).name("Line Thickness").onChange(setLineThickness);
         gui.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
         gui.add(controlParams, 'opacity', 0.01, 1.0, 0.01).name("Opacity").onChange(setOpacity);
+        gui.add(controlParams, 'showCursor').name("Show Cursor").onChange(updateCursorVisibility);
+        gui.add(controlParams, 'showAxes').name("Show Axes").onChange(updateAxesVisibility);
         gui.add(controlParams, 'resetGraph').name("Reset Graph");
         gui.add(lorenzParams, 'sigma', 0.0001, 20, 0.1).name("&sigma;").listen();
         gui.add(lorenzParams, 'beta', 0.0001, 10, 0.001).name("&beta;").listen();
