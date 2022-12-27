@@ -20,12 +20,15 @@ const defaultStartPoint = new Vector3(0.1, 0.1, 0.1);
 const defaultLinePoints = [defaultStartPoint.x, defaultStartPoint.y, defaultStartPoint.z,
     defaultStartPoint.x, defaultStartPoint.y, defaultStartPoint.z];
 
-const lorenzParams = {
+const defaultLorenzParams = {
     // lorenz used the values σ = 10, β = 8/3 and ρ = 28, so these are our defaults
     'sigma': 10,
     'beta': 8/3,
     'rho': 28,
     'dt': 0.01
+};
+const lorenzParams = {
+    ...defaultLorenzParams
 };
 
 const controlParams = {
@@ -83,10 +86,10 @@ function resetLorenzGraph() {
 function resetLorenzParameters() {
     log.debug("Resetting Lorenz parameters to defaults");
     controlParams.running = false;
-    lorenzParams.sigma = 10;
-    lorenzParams.beta = 8/3;
-    lorenzParams.rho = 28;
-    lorenzParams.dt = 0.01;
+    lorenzParams.sigma = defaultLorenzParams.sigma;
+    lorenzParams.beta = defaultLorenzParams.beta;
+    lorenzParams.rho = defaultLorenzParams.rho;
+    lorenzParams.dt = defaultLorenzParams.dt;
 }
 
 function setGraphColor() {
