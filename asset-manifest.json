@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.css": "/tajhlande/dmp-js/static/css/main.3cd21117.css",
-    "main.js": "/tajhlande/dmp-js/static/js/main.f9a58f1b.js",
-    "index.html": "/tajhlande/dmp-js/index.html",
-    "main.3cd21117.css.map": "/tajhlande/dmp-js/static/css/main.3cd21117.css.map",
-    "main.f9a58f1b.js.map": "/tajhlande/dmp-js/static/js/main.f9a58f1b.js.map"
+    "main.css": "/dmp-js/static/css/main.3cd21117.css",
+    "main.js": "/dmp-js/static/js/main.f9a58f1b.js",
+    "index.html": "/dmp-js/index.html",
+    "main.3cd21117.css.map": "/dmp-js/static/css/main.3cd21117.css.map",
+    "main.f9a58f1b.js.map": "/dmp-js/static/js/main.f9a58f1b.js.map"
   },
   "entrypoints": [
     "static/css/main.3cd21117.css",
