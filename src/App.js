@@ -27,7 +27,7 @@ const lorenzParams = {
 const controlParams = {
     'running': false,
     'iterations': 0,
-    'maxIterations': 100000,
+    'maxIterations': 10000,
     'iterationsPerFrame': 1,
     'lineThickness': 0.0024,
     'opacity': 1.0,
@@ -35,6 +35,7 @@ const controlParams = {
 }
 
 let lzPos = new Vector3(0.1, 0.1, 0.1);
+let lpts = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
 
 const lorenzMaterial = new LineMaterial( {
     color: new Color().setHex(controlParams.graphColor),
@@ -44,11 +45,17 @@ const lorenzMaterial = new LineMaterial( {
     dashed: false,
     alphaToCoverage: true,
 } );
+let lineGeometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
+lineGeometry.setPositions(lpts);
+let lorenzLine = new Line2(lineGeometry, lorenzMaterial);
+lorenzLine.scale.setScalar(1);
+lorenzLine.computeLineDistances();
 
 const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({antialias: true});
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 let lorenzRoot = new THREE.Object3D();
+
 
 function resetLorenzGraph() {
     log.debug("Resetting graph");
@@ -56,8 +63,13 @@ function resetLorenzGraph() {
     scene.remove(lorenzRoot);
     lorenzRoot = new THREE.Object3D();
     scene.add(lorenzRoot);
+    lineGeometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
+    lineGeometry.setPositions(lpts);
+    lorenzLine = new Line2(lineGeometry, lorenzMaterial);
+    lorenzRoot.add(lorenzLine);
     controlParams.iterations = 0;
     lzPos = new Vector3(0.1, 0.1, 0.1);
+    lpts = [0.11, 0.11, 0.11, 0.11, 0.11, 0.11];
     renderer.render(scene, camera);
 }
 
@@ -128,6 +140,7 @@ class App extends Component {
 
         scene.add(...axes);
         scene.add(lorenzRoot);
+        lorenzRoot.add(lorenzLine);
 
         camera.position.z = 120;
         controls.update();
@@ -141,18 +154,17 @@ class App extends Component {
                     const prevLzPos = lzPos;
                     lzPos = advanceLorenz(lzPos, lorenzParams);
 
-                    const lpts = [];
-                    lpts.push(prevLzPos.x, prevLzPos.y, prevLzPos.z);
                     lpts.push(lzPos.x, lzPos.y, lzPos.z);
 
-                    const geometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
-                    geometry.setPositions(lpts);
-                    const lorenzLine = new Line2(geometry, lorenzMaterial);
-                    lorenzLine.computeLineDistances();
-                    lorenzLine.scale.set(1, 1, 1);
-                    lorenzRoot.add(lorenzLine);
                     controlParams.iterations++;
                 }
+                lineGeometry = new LineGeometry();
+                lineGeometry.setPositions(lpts);
+                lorenzRoot.remove(lorenzLine);
+                lorenzLine = new Line2(lineGeometry, lorenzMaterial);
+                lorenzLine.scale.setScalar(1);
+                lorenzLine.computeLineDistances();
+                lorenzRoot.add(lorenzLine);
             }
             else if (controlParams.iterations >= controlParams.maxIterations) {
                 controlParams.running = false;
