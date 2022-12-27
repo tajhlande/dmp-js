@@ -16,6 +16,10 @@ const log = loglevel.getLogger("lorenz");
 
 let gui = new GUI();
 
+const defaultStartPoint = new Vector3(0.1, 0.1, 0.1);
+const defaultLinePoints = [defaultStartPoint.x, defaultStartPoint.y, defaultStartPoint.z,
+    defaultStartPoint.x, defaultStartPoint.y, defaultStartPoint.z];
+
 const lorenzParams = {
     // lorenz used the values σ = 10, β = 8/3 and ρ = 28, so these are our defaults
     'sigma': 10,
@@ -34,8 +38,9 @@ const controlParams = {
     'graphColor' : 0xFFFF00
 }
 
-let lzPos = new Vector3(0.1, 0.1, 0.1);
-let lpts = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+let lzPos = new Vector3().copy( defaultStartPoint);
+let lpts = [];
+lpts.push(...defaultLinePoints);
 
 const lorenzMaterial = new LineMaterial( {
     color: new Color().setHex(controlParams.graphColor),
@@ -63,13 +68,15 @@ function resetLorenzGraph() {
     scene.remove(lorenzRoot);
     lorenzRoot = new THREE.Object3D();
     scene.add(lorenzRoot);
+    lzPos.copy(defaultStartPoint);
+    lpts = [];
+    lpts.push(...defaultLinePoints);
     lineGeometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
     lineGeometry.setPositions(lpts);
     lorenzLine = new Line2(lineGeometry, lorenzMaterial);
     lorenzRoot.add(lorenzLine);
     controlParams.iterations = 0;
-    lzPos = new Vector3(0.1, 0.1, 0.1);
-    lpts = [0.11, 0.11, 0.11, 0.11, 0.11, 0.11];
+
     renderer.render(scene, camera);
 }
 
@@ -180,8 +187,8 @@ class App extends Component {
         gui.title("Lorenz Attractor Controls");
         gui.add(controlParams, 'running').name("Running").listen();
         gui.add(controlParams, 'iterations').name("Iterations").disable().listen();
-        gui.add(controlParams, 'maxIterations', [1000, 10000, 100000, 1000000]).name("Max Iterations");
-        gui.add(controlParams, 'iterationsPerFrame', [1, 5, 10, 15]).name("Iterations Per Frame");
+        gui.add(controlParams, 'maxIterations', [1000, 10000, 100000]).name("Max Iterations");
+        gui.add(controlParams, 'iterationsPerFrame', [1, 5, 10, 25, 100]).name("Iterations Per Frame");
         gui.add(controlParams, 'lineThickness', 0.0001, 0.0100, 0.0001).name("Line Thickness").onChange(setLineThickness);
         gui.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
         gui.add(controlParams, 'opacity', 0.01, 1.0, 0.01).name("Opacity").onChange(setOpacity);
