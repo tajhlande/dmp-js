@@ -1,8 +1,11 @@
-import {Color} from "three";
+import {Color, TextureLoader, SpriteMaterial, Sprite} from "three";
 import {Line2} from "three/examples/jsm/lines/Line2";
 import {LineGeometry} from "three/examples/jsm/lines/LineGeometry";
 import {LineMaterial} from "three/examples/jsm/lines/LineMaterial";
 import * as loglevel from 'loglevel';
+import x_sprite_path from "./sprites/X-sprite.png";
+import y_sprite_path from "./sprites/Y-sprite.png";
+import z_sprite_path from "./sprites/Z-sprite.png";
 
 const log = loglevel.getLogger("axes");
 
@@ -94,40 +97,40 @@ function createTickLine(points, color, tickThickness) {
 }
 
 function createXAxisTicks(axisProps = new AxisProperties()) {
-    log.debug("In createXAxisTicks()");
+    // log.debug("In createXAxisTicks()");
     const axisTicks = [];
 
     // number of ticks along one axis from origin to tip
     const numTicks = Math.floor(axisProps.axisLength / axisProps.ticksEvery);
-    log.debug(`Axis length: ${axisProps.axisLength}`);
-    log.debug(`Ticks every: ${axisProps.ticksEvery}`);
+    // log.debug(`Axis length: ${axisProps.axisLength}`);
+    // log.debug(`Ticks every: ${axisProps.ticksEvery}`);
     if (numTicks < 1) {
         log.info("No ticks to mark");
         return axisTicks;
     }
     log.info(`Number of ticks: ${numTicks}`);
     const fullTickLength = axisProps.axisThickness + axisProps.tickLength * 2;
-    log.debug(`Axis thickness: ${axisProps.axisThickness}`);
-    log.debug(`Tick length: ${axisProps.tickLength}`);
-    log.debug(`Full Tick length: ${fullTickLength}`);
-    log.debug(`Tick thickness: ${axisProps.tickThickness}`);
+    // log.debug(`Axis thickness: ${axisProps.axisThickness}`);
+    // log.debug(`Tick length: ${axisProps.tickLength}`);
+    // log.debug(`Full Tick length: ${fullTickLength}`);
+    // log.debug(`Tick thickness: ${axisProps.tickThickness}`);
 
     for (let i = -numTicks; i <= numTicks; i++) {
         if (i === 0) continue; // don't need a tick at the origin
-        log.debug(`Pass ${i}`);
+        //log.debug(`Pass ${i}`);
         // criss-cross ticks
         {
             const points = [];
             points.push(axisProps.ticksEvery * i, -fullTickLength, 0);
             points.push(axisProps.ticksEvery * i, fullTickLength,  0);
-            log.debug(`Cross 1 from (${points[0]}, ${points[1]}, ${points[2]}) to (${points[3]}, ${points[4]}, ${points[5]})`)
+            //log.debug(`Cross 1 from (${points[0]}, ${points[1]}, ${points[2]}) to (${points[3]}, ${points[4]}, ${points[5]})`)
             axisTicks.push(createTickLine(points, axisProps.xColor, axisProps.tickThickness));
         }
         {
             const points = [];
             points.push(axisProps.ticksEvery * i, 0, -fullTickLength);
             points.push(axisProps.ticksEvery * i, 0, fullTickLength);
-            log.debug(`Cross 2 from (${points[0]}, ${points[1]}, ${points[2]}) to (${points[3]}, ${points[4]}, ${points[5]})`)
+            //log.debug(`Cross 2 from (${points[0]}, ${points[1]}, ${points[2]}) to (${points[3]}, ${points[4]}, ${points[5]})`)
             axisTicks.push(createTickLine(points, axisProps.xColor, axisProps.tickThickness));
         }
     }
@@ -192,6 +195,36 @@ function createZAxisTicks(axisProps = new AxisProperties()) {
     return axisTicks;
 }
 
+function loadAxisLabelSprites(axisProps = new AxisProperties()) {
+    log.debug(`Loading X sprite from ${x_sprite_path}`);
+    const xTextureMap = new TextureLoader().load( x_sprite_path,
+        (texture) => { log.debug("X sprite loaded"); }, null,
+        (e) => { log.debug(`Error while loading X sprite`); console.error(e); } );
+    const xSpriteMaterial = new SpriteMaterial( { map: xTextureMap, color: 0xffffff, transparent: true } );
+    const xLabelSprite = new Sprite( xSpriteMaterial );
+    xLabelSprite.scale.setScalar(2);
+    xLabelSprite.position.set(axisProps.axisLength * 1.05, 0, 0);
+
+    log.debug(`Loading Y sprite from ${y_sprite_path}`);
+    const yTextureMap = new TextureLoader().load( y_sprite_path,
+        (texture) => { log.debug("Y sprite loaded"); }, null,
+        (e) => { log.debug(`Error while loading Y sprite`); console.error(e); } );
+    const ySpriteMaterial = new SpriteMaterial( { map: yTextureMap, color: 0xffffff, transparent: true } );
+    const yLabelSprite = new Sprite( ySpriteMaterial );
+    yLabelSprite.scale.setScalar(2);
+    yLabelSprite.position.set(0, axisProps.axisLength * 1.05, 0);
+
+    log.debug(`Loading Z sprite from ${z_sprite_path}`);
+    const zTextureMap = new TextureLoader().load( z_sprite_path,
+        (texture) => { log.debug("Z sprite loaded"); }, null,
+        (e) => { log.debug(`Error while loading Z sprite`); console.error(e); } );
+    const zSpriteMaterial = new SpriteMaterial( { map: zTextureMap, color: 0xffffff, transparent: true } );
+    const zLabelSprite = new Sprite( zSpriteMaterial );
+    zLabelSprite.scale.setScalar(2);
+    zLabelSprite.position.set(0, 0, axisProps.axisLength * 1.05);
+
+    return [xLabelSprite, yLabelSprite, zLabelSprite];
+}
 
 export function createAxes(axisProps = new AxisProperties()) {
     const axisObjects = [];
@@ -203,5 +236,6 @@ export function createAxes(axisProps = new AxisProperties()) {
         axisObjects.push(...createYAxisTicks(axisProps));
         axisObjects.push(...createZAxisTicks(axisProps));
     }
+    axisObjects.push(...loadAxisLabelSprites(axisProps));
     return axisObjects;
 }

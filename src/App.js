@@ -10,7 +10,9 @@ import {Color, Vector3} from "three";
 import {LineMaterial} from 'three/examples/jsm/lines/LineMaterial';
 import {LineGeometry} from 'three/examples/jsm/lines/LineGeometry';
 import {Line2} from 'three/examples/jsm/lines/Line2';
+import * as loglevel from "loglevel";
 
+const log = loglevel.getLogger("lorenz");
 
 let gui = new GUI();
 
@@ -27,6 +29,8 @@ const controlParams = {
     'iterations': 0,
     'maxIterations': 100000,
     'iterationsPerFrame': 1,
+    'lineThickness': 0.0024,
+    'opacity': 1.0,
     'graphColor' : 0xFFFF00
 }
 
@@ -34,7 +38,8 @@ let lzPos = new Vector3(0.1, 0.1, 0.1);
 
 const lorenzMaterial = new LineMaterial( {
     color: new Color().setHex(controlParams.graphColor),
-    linewidth: 0.0024, // in world units with size attenuation, pixels otherwise
+    linewidth: controlParams.lineThickness, // in world units with size attenuation, pixels otherwise
+    opacity: controlParams.opacity,
     vertexColors: false,
     dashed: false,
     alphaToCoverage: true,
@@ -46,7 +51,7 @@ const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerH
 let lorenzRoot = new THREE.Object3D();
 
 function resetLorenzGraph() {
-    console.log("Resetting graph");
+    log.debug("Resetting graph");
     controlParams.running = false;
     scene.remove(lorenzRoot);
     lorenzRoot = new THREE.Object3D();
@@ -57,7 +62,7 @@ function resetLorenzGraph() {
 }
 
 function resetLorenzParameters() {
-    console.log("Resetting Lorenz parameters to defaults");
+    log.debug("Resetting Lorenz parameters to defaults");
     controlParams.running = false;
     lorenzParams.sigma = 10;
     lorenzParams.beta = 8/3;
@@ -66,19 +71,29 @@ function resetLorenzParameters() {
 }
 
 function setGraphColor() {
-    console.log(`Setting graph color to ${controlParams.graphColor}`);
+    log.debug(`Setting graph color to ${controlParams.graphColor}`);
     lorenzMaterial.color = new Color().setHex(controlParams.graphColor);
+}
+
+function setLineThickness() {
+    log.debug(`Setting line thickness to ${controlParams.lineThickness}`);
+    lorenzMaterial.linewidth = controlParams.lineThickness;
+}
+
+function setOpacity() {
+    log.debug(`Setting opacity to ${controlParams.opacity}`);
+    lorenzMaterial.opacity = controlParams.opacity;
 }
 
 controlParams.resetGraph = resetLorenzGraph;
 controlParams.resetParameters = resetLorenzParameters;
 
-function advanceLorentz(lPos, lParams) {
+function advanceLorenz(lPos, lParams) {
     const x_dot = lParams.sigma * (lPos.y - lPos.x);
     const y_dot = lPos.x * (lParams.rho - lPos.z) -  lPos.y
     const z_dot = lPos.x * lPos.y - lParams.beta * lPos.z;
 
-    // console.log(`Lorenz gradient: (${x_dot}, ${y_dot}, ${z_dot})`);
+    // log.debug(`Lorenz gradient: (${x_dot}, ${y_dot}, ${z_dot})`);
 
     return new Vector3(
         lPos.x + (x_dot * lParams.dt),
@@ -90,8 +105,10 @@ function advanceLorentz(lPos, lParams) {
 class App extends Component {
 
     updateDimensions = () => {
+        log.debug("Window resized");
         this.setState({ width: window.innerWidth, height: window.innerHeight });
         camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.render(scene, camera);
     };
@@ -122,13 +139,11 @@ class App extends Component {
             if (controlParams.running && controlParams.iterations < controlParams.maxIterations) {
                 for (let i = 0; i < controlParams.iterationsPerFrame && controlParams.iterations < controlParams.maxIterations; i++) {
                     const prevLzPos = lzPos;
-                    lzPos = advanceLorentz(lzPos, lorenzParams);
-                    //console.log(`New Lorentz point: (${lzPos.x}, ${lzPos.y}, ${lzPos.z}`);
+                    lzPos = advanceLorenz(lzPos, lorenzParams);
 
                     const lpts = [];
                     lpts.push(prevLzPos.x, prevLzPos.y, prevLzPos.z);
                     lpts.push(lzPos.x, lzPos.y, lzPos.z);
-                    //console.log(`Lorentz from (${lpts[0]}, ${lpts[1]}, ${lpts[2]})  to (${lpts[3]}, ${lpts[4]}, ${lpts[5]})`);
 
                     const geometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
                     geometry.setPositions(lpts);
@@ -150,17 +165,19 @@ class App extends Component {
 
         };
 
-        gui.title("Lorentz Attractor Controls");
+        gui.title("Lorenz Attractor Controls");
         gui.add(controlParams, 'running').name("Running").listen();
-        gui.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
         gui.add(controlParams, 'iterations').name("Iterations").disable().listen();
         gui.add(controlParams, 'maxIterations', [1000, 10000, 100000, 1000000]).name("Max Iterations");
-        gui.add(controlParams, 'iterationsPerFrame', [1, 5, 10, 25]).name("Iterations Per Frame");
+        gui.add(controlParams, 'iterationsPerFrame', [1, 5, 10, 15]).name("Iterations Per Frame");
+        gui.add(controlParams, 'lineThickness', 0.0001, 0.0100, 0.0001).name("Line Thickness").onChange(setLineThickness);
+        gui.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
+        gui.add(controlParams, 'opacity', 0.01, 1.0, 0.01).name("Opacity").onChange(setOpacity);
         gui.add(controlParams, 'resetGraph').name("Reset Graph");
-        gui.add(lorenzParams, 'sigma', 0.0001, 20, 0.1).listen();
-        gui.add(lorenzParams, 'beta', 0.0001, 10, 0.001).listen();
-        gui.add(lorenzParams, 'rho', 0.0001, 100, 1).listen();
-        gui.add(lorenzParams, 'dt', 0.001, 0.03, 0.001).listen();
+        gui.add(lorenzParams, 'sigma', 0.0001, 20, 0.1).name("&sigma;").listen();
+        gui.add(lorenzParams, 'beta', 0.0001, 10, 0.001).name("&beta;").listen();
+        gui.add(lorenzParams, 'rho', 0.0001, 100, 1).name("&rho;").listen();
+        gui.add(lorenzParams, 'dt', 0.001, 0.03, 0.001).name("&delta;t").listen();
         gui.add(controlParams, 'resetParameters').name("Reset Parameters");
 
 
@@ -171,8 +188,6 @@ class App extends Component {
         stats.addPanel(gpuPanel);
         stats.showPanel(0);
 
-        // initGui();
-
 
         animate();
     }
@@ -181,6 +196,10 @@ class App extends Component {
         return (
             <div ref={ref => (this.mount = ref)}/>
         )
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener('resize', this.updateDimensions, false)
     }
 }
 
