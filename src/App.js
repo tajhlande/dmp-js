@@ -26,6 +26,7 @@ const controlParams = {
     'running': false,
     'iterations': 0,
     'maxIterations': 100000,
+    'iterationsPerFrame': 1,
     'graphColor' : 0xFFFF00
 }
 
@@ -119,22 +120,24 @@ class App extends Component {
             stats.begin();
 
             if (controlParams.running && controlParams.iterations < controlParams.maxIterations) {
-                const prevLzPos = lzPos;
-                lzPos = advanceLorentz(lzPos, lorenzParams);
-                //console.log(`New Lorentz point: (${lzPos.x}, ${lzPos.y}, ${lzPos.z}`);
+                for (let i = 0; i < controlParams.iterationsPerFrame && controlParams.iterations < controlParams.maxIterations; i++) {
+                    const prevLzPos = lzPos;
+                    lzPos = advanceLorentz(lzPos, lorenzParams);
+                    //console.log(`New Lorentz point: (${lzPos.x}, ${lzPos.y}, ${lzPos.z}`);
 
-                const lpts = [];
-                lpts.push(prevLzPos.x, prevLzPos.y, prevLzPos.z);
-                lpts.push(lzPos.x, lzPos.y, lzPos.z);
-                //console.log(`Lorentz from (${lpts[0]}, ${lpts[1]}, ${lpts[2]})  to (${lpts[3]}, ${lpts[4]}, ${lpts[5]})`);
+                    const lpts = [];
+                    lpts.push(prevLzPos.x, prevLzPos.y, prevLzPos.z);
+                    lpts.push(lzPos.x, lzPos.y, lzPos.z);
+                    //console.log(`Lorentz from (${lpts[0]}, ${lpts[1]}, ${lpts[2]})  to (${lpts[3]}, ${lpts[4]}, ${lpts[5]})`);
 
-                const geometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
-                geometry.setPositions(lpts);
-                const lorenzLine = new Line2(geometry, lorenzMaterial);
-                lorenzLine.computeLineDistances();
-                lorenzLine.scale.set(1, 1, 1);
-                lorenzRoot.add(lorenzLine);
-                controlParams.iterations++;
+                    const geometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
+                    geometry.setPositions(lpts);
+                    const lorenzLine = new Line2(geometry, lorenzMaterial);
+                    lorenzLine.computeLineDistances();
+                    lorenzLine.scale.set(1, 1, 1);
+                    lorenzRoot.add(lorenzLine);
+                    controlParams.iterations++;
+                }
             }
             else if (controlParams.iterations >= controlParams.maxIterations) {
                 controlParams.running = false;
@@ -152,6 +155,7 @@ class App extends Component {
         gui.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
         gui.add(controlParams, 'iterations').name("Iterations").disable().listen();
         gui.add(controlParams, 'maxIterations', [1000, 10000, 100000, 1000000]).name("Max Iterations");
+        gui.add(controlParams, 'iterationsPerFrame', [1, 5, 10, 25]).name("Iterations Per Frame");
         gui.add(controlParams, 'resetGraph').name("Reset Graph");
         gui.add(lorenzParams, 'sigma', 0.0001, 20, 0.1).listen();
         gui.add(lorenzParams, 'beta', 0.0001, 10, 0.001).listen();
