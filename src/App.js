@@ -155,8 +155,19 @@ class App extends Component {
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.render(scene, camera);
     };
+
+    // toggleRunning = () => {
+    //     log.debug("Window touch started");
+    //     controlParams.running = !controlParams.running;
+    // }
+
     componentDidMount() {
         window.addEventListener('resize', this.updateDimensions);
+
+        // two problems with the line commented out below:
+        // 1) still listens to events handled by the GUI
+        // 2) this needs to be responsive to a tap event and not other kinds of touch
+        //window.addEventListener('touchstart', this.toggleRunning);
         const controls = new OrbitControls(camera, renderer.domElement);
 
 //      renderer.setPixelRatio( window.devicePixelRatio );
