@@ -16,3 +16,5 @@ then it will open [http://localhost:3000](http://localhost:3000)
 `npm run predeploy`
 
 `npm run deploy`
+                                     
+how to do it came from here: [React GH Pages](https://github.com/gitname/react-gh-pages)

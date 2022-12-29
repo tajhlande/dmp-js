@@ -41,7 +41,8 @@ const controlParams = {
     'opacity': 1.0,
     'graphColor' : 0xFFFF00,
     'showCursor' : true,
-    'showAxes': true
+    'showAxes': true,
+    'followCursor': false
 }
 
 let lzPos = new Vector3().copy( defaultStartPoint);
@@ -212,8 +213,13 @@ class App extends Component {
                 controlParams.running = false;
             }
 
+            if (controlParams.followCursor) {
+                controls.target.copy(lzPos);
+                controls.update();
+            } else {
+              //  controls.target.set(0, 0, 0);
+            }
             requestAnimationFrame(animate);
-            controls.update();
             renderer.render(scene, camera);
             stats.end();
 
@@ -228,6 +234,7 @@ class App extends Component {
         gui.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
         gui.add(controlParams, 'opacity', 0.01, 1.0, 0.01).name("Opacity").onChange(setOpacity);
         gui.add(controlParams, 'showCursor').name("Show Cursor").onChange(updateCursorVisibility);
+        gui.add(controlParams, 'followCursor').name("Follow Cursor");
         gui.add(controlParams, 'showAxes').name("Show Axes").onChange(updateAxesVisibility);
         gui.add(controlParams, 'resetGraph').name("Reset Graph");
         gui.add(lorenzParams, 'sigma', 0.0001, 20, 0.1).name("&sigma;").listen();
