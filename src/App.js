@@ -41,10 +41,11 @@ const controlParams = {
     'lineThickness': 0.0024,
     'opacity': 1.0,
     'graphColor' : 0xFFFF00,
-    'showCursor' : true,
     'showAxes': true,
+    'showCursor' : true,
+    'cursorTracking': 'manual',
     'showRideCameraFrustrum': false,
-    'cursorTracking': 'manual'
+    'rideCameraZoom': 10
 }
 
 const statsParams = {
@@ -246,7 +247,7 @@ class App extends Component {
             // compute ride camera position and orientation regardless
             let cameraSetback = new Vector3().subVectors(prevLzPos, lzPos);
             cameraSetback.normalize();
-            cameraSetback.multiplyScalar(10);
+            cameraSetback.multiplyScalar(controlParams.rideCameraZoom);
             // log.debug(`Previous Lorentz position: (${prevLzPos.x}, ${prevLzPos.y}, ${prevLzPos.z})`);
             // log.debug(`Lorentz position: (${lzPos.x}, ${lzPos.y}, ${lzPos.z})`);
             // log.debug(`Ride cam setback position & length: (${cameraSetback.x}, ${cameraSetback.y}, ${cameraSetback.z}) ${cameraSetback.length()}`);
@@ -283,19 +284,21 @@ class App extends Component {
         };
 
         gui.title("Controls");
-        const simControlsFolder = gui.addFolder('Simulation Controls');
+        const simControlsFolder = gui.addFolder('Simulation');
         simControlsFolder.add(controlParams, 'running').name("Running").listen();
         simControlsFolder.add(controlParams, 'iterations').name("Iterations").disable().listen();
         simControlsFolder.add(controlParams, 'maxIterations', [1000, 10000, 100000]).name("Max Iterations");
         simControlsFolder.add(controlParams, 'iterationsPerFrame', [1, 5, 10, 25, 100]).name("Iterations Per Frame");
-        simControlsFolder.add(controlParams, 'lineThickness', 0.0001, 0.0100, 0.0001).name("Line Thickness").onChange(setLineThickness);
-        simControlsFolder.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
-        simControlsFolder.add(controlParams, 'opacity', 0.01, 1.0, 0.01).name("Opacity").onChange(setOpacity);
-        simControlsFolder.add(controlParams, 'showAxes').name("Show Axes").onChange(updateAxesVisibility);
-        simControlsFolder.add(controlParams, 'showCursor').name("Show Cursor").onChange(updateCursorVisibility);
-        simControlsFolder.add(controlParams, 'cursorTracking', ['manual', 'follow', 'ride']).name("Cursor Tracking");
-        simControlsFolder.add(controlParams, 'showRideCameraFrustrum').name("Show Ride Camera Frustrum").onChange(updateRideCamHelperVisibility);
         simControlsFolder.add(controlParams, 'resetGraph').name("Reset Graph");
+        const viewControlsFolder = gui.addFolder('View');
+        viewControlsFolder.add(controlParams, 'lineThickness', 0.0001, 0.0100, 0.0001).name("Line Thickness").onChange(setLineThickness);
+        viewControlsFolder.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
+        viewControlsFolder.add(controlParams, 'opacity', 0.01, 1.0, 0.01).name("Opacity").onChange(setOpacity);
+        viewControlsFolder.add(controlParams, 'showAxes').name("Show Axes").onChange(updateAxesVisibility);
+        viewControlsFolder.add(controlParams, 'showCursor').name("Show Cursor").onChange(updateCursorVisibility);
+        viewControlsFolder.add(controlParams, 'cursorTracking', ['manual', 'follow', 'ride']).name("Cursor Tracking");
+        viewControlsFolder.add(controlParams, 'showRideCameraFrustrum').name("Show Ride Cam Frustrum").onChange(updateRideCamHelperVisibility);
+        viewControlsFolder.add(controlParams, 'rideCameraZoom', 5, 100, 1).name("Ride Camera Zoom");
         const parameterControlsFolder = gui.addFolder('Formula Parameters');
         parameterControlsFolder.add(lorenzParams, 'sigma', 0.0001, 20, 0.1).name("&sigma;").listen();
         parameterControlsFolder.add(lorenzParams, 'beta', 0.0001, 10, 0.001).name("&beta;").listen();
