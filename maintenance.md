@@ -9,7 +9,7 @@ then it will open [http://localhost:3000](http://localhost:3000)
 
 ### To build production version
 
-`npm build`
+`npm run build`
 
 ### To publish to Github Pages
 
