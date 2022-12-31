@@ -13,7 +13,7 @@ import {Line2} from 'three/examples/jsm/lines/Line2';
 import * as loglevel from "loglevel";
 import Footer from "./Footer";
 
-const log = loglevel.getLogger("lorenz");
+const log = loglevel.getLogger("dmp");
 log.setLevel('debug');
 
 let gui = new GUI();
@@ -57,11 +57,11 @@ const statsParams = {
     'ride_camera_z': 0
 }
 
-let lzPos = new Vector3().copy( defaultStartPoint);
-let lpts = [];
-lpts.push(...defaultLinePoints);
+let graphPos = new Vector3().copy( defaultStartPoint);
+let graphPts = [];
+graphPts.push(...defaultLinePoints);
 
-const lorenzMaterial = new LineMaterial( {
+const graphMaterial = new LineMaterial( {
     color: new Color().setHex(controlParams.graphColor),
     linewidth: controlParams.lineThickness, // in world units with size attenuation, pixels otherwise
     opacity: controlParams.opacity,
@@ -70,22 +70,22 @@ const lorenzMaterial = new LineMaterial( {
     alphaToCoverage: true,
 } );
 let lineGeometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
-lineGeometry.setPositions(lpts);
-let lorenzLine = new Line2(lineGeometry, lorenzMaterial);
-lorenzLine.scale.setScalar(1);
-lorenzLine.computeLineDistances();
+lineGeometry.setPositions(graphPts);
+let graphLine = new Line2(lineGeometry, graphMaterial);
+graphLine.scale.setScalar(1);
+graphLine.computeLineDistances();
 
 const cursorGeometry = new THREE.SphereGeometry( controlParams.lineThickness * 200, 8, 8 );
 const cursorMaterial = new THREE.MeshBasicMaterial( { color: 0xff00ff } );
 const cursor = new THREE.Mesh( cursorGeometry, cursorMaterial );
-cursor.position.copy(lzPos);
+cursor.position.copy(graphPos);
 
 const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({antialias: true});
 const mainCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 const rideCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 rideCamera.position.set(0, 0, 0);
-let lorenzRoot = new THREE.Object3D();
+let graphRoot = new THREE.Object3D();
 let axesRoot = new THREE.Object3D();
 scene.add(rideCamera);
 const rideCameraHelper = new CameraHelper(rideCamera);
@@ -93,19 +93,19 @@ rideCameraHelper.visible = controlParams.showRideCameraFrustrum;
 scene.add(rideCameraHelper);
 
 
-function resetLorenzGraph() {
+function resetGraph() {
     log.debug("Resetting graph");
     controlParams.running = false;
-    scene.remove(lorenzRoot);
-    lorenzRoot = new THREE.Object3D();
-    scene.add(lorenzRoot);
-    lzPos.copy(defaultStartPoint);
-    lpts = [];
-    lpts.push(...defaultLinePoints);
+    scene.remove(graphRoot);
+    graphRoot = new THREE.Object3D();
+    scene.add(graphRoot);
+    graphPos.copy(defaultStartPoint);
+    graphPts = [];
+    graphPts.push(...defaultLinePoints);
     lineGeometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
-    lineGeometry.setPositions(lpts);
-    lorenzLine = new Line2(lineGeometry, lorenzMaterial);
-    lorenzRoot.add(lorenzLine);
+    lineGeometry.setPositions(graphPts);
+    graphLine = new Line2(lineGeometry, graphMaterial);
+    graphRoot.add(graphLine);
     controlParams.iterations = 0;
     controlParams.cursorTracking = 'manual';
     renderer.render(scene, mainCamera);
@@ -122,17 +122,17 @@ function resetLorenzParameters() {
 
 function setGraphColor() {
     log.debug(`Setting graph color to ${controlParams.graphColor}`);
-    lorenzMaterial.color = new Color().setHex(controlParams.graphColor);
+    graphMaterial.color = new Color().setHex(controlParams.graphColor);
 }
 
 function setLineThickness() {
     log.debug(`Setting line thickness to ${controlParams.lineThickness}`);
-    lorenzMaterial.linewidth = controlParams.lineThickness;
+    graphMaterial.linewidth = controlParams.lineThickness;
 }
 
 function setOpacity() {
     log.debug(`Setting opacity to ${controlParams.opacity}`);
-    lorenzMaterial.opacity = controlParams.opacity;
+    graphMaterial.opacity = controlParams.opacity;
 }
 
 function updateCursorVisibility() {
@@ -152,7 +152,7 @@ function updateAxesVisibility() {
 
 
 // set up gui button callbacks
-controlParams.resetGraph = resetLorenzGraph;
+controlParams.resetGraph = resetGraph;
 controlParams.resetParameters = resetLorenzParameters;
 
 function advanceLorenz(lPos, lParams) {
@@ -169,7 +169,7 @@ function advanceLorenz(lPos, lParams) {
     );
 }
 
-class App extends Component {
+class DMP extends Component {
 
     updateDimensions = () => {
         log.debug("Window resized");
@@ -213,39 +213,39 @@ class App extends Component {
 
         axesRoot.add(...axes);
         scene.add(axesRoot);
-        scene.add(lorenzRoot);
-        lorenzRoot.add(lorenzLine);
+        scene.add(graphRoot);
+        graphRoot.add(graphLine);
         scene.add(cursor);
 
         mainCamera.position.z = 120;
         orbitControls.update();
 
-        let prevLzPos = lzPos;
+        let prevLzPos = graphPos;
         let animate = function () {
             stats.begin();
 
             if (controlParams.running && controlParams.iterations < controlParams.maxIterations) {
                 for (let i = 0; i < controlParams.iterationsPerFrame && controlParams.iterations < controlParams.maxIterations; i++) {
-                    prevLzPos = lzPos;
-                    lzPos = advanceLorenz(lzPos, lorenzParams);
-                    lpts.push(lzPos.x, lzPos.y, lzPos.z);
+                    prevLzPos = graphPos;
+                    graphPos = advanceLorenz(graphPos, lorenzParams);
+                    graphPts.push(graphPos.x, graphPos.y, graphPos.z);
                     controlParams.iterations++;
                 }
                 lineGeometry = new LineGeometry();
-                lineGeometry.setPositions(lpts);
-                lorenzRoot.remove(lorenzLine);
-                lorenzLine = new Line2(lineGeometry, lorenzMaterial);
-                lorenzLine.scale.setScalar(1);
-                lorenzLine.computeLineDistances();
-                lorenzRoot.add(lorenzLine);
-                cursor.position.copy(lzPos);
+                lineGeometry.setPositions(graphPts);
+                graphRoot.remove(graphLine);
+                graphLine = new Line2(lineGeometry, graphMaterial);
+                graphLine.scale.setScalar(1);
+                graphLine.computeLineDistances();
+                graphRoot.add(graphLine);
+                cursor.position.copy(graphPos);
             }
             else if (controlParams.iterations >= controlParams.maxIterations) {
                 controlParams.running = false;
             }
 
             // compute ride camera position and orientation regardless
-            let cameraSetback = new Vector3().subVectors(prevLzPos, lzPos);
+            let cameraSetback = new Vector3().subVectors(prevLzPos, graphPos);
             cameraSetback.normalize();
             cameraSetback.multiplyScalar(controlParams.rideCameraZoom);
             // log.debug(`Previous Lorentz position: (${prevLzPos.x}, ${prevLzPos.y}, ${prevLzPos.z})`);
@@ -253,7 +253,7 @@ class App extends Component {
             // log.debug(`Ride cam setback position & length: (${cameraSetback.x}, ${cameraSetback.y}, ${cameraSetback.z}) ${cameraSetback.length()}`);
             let rideCameraPos = new Vector3().addVectors(prevLzPos, cameraSetback);
             rideCamera.position.copy(rideCameraPos);
-            rideCamera.lookAt(lzPos);
+            rideCamera.lookAt(graphPos);
             statsParams.ride_camera_x = rideCamera.position.x;
             statsParams.ride_camera_y = rideCamera.position.y;
             statsParams.ride_camera_z = rideCamera.position.z;
@@ -262,7 +262,7 @@ class App extends Component {
 
             // align camera to cursor tracking parameter
             if (controlParams.cursorTracking === 'follow') {
-                orbitControls.target.copy(lzPos);
+                orbitControls.target.copy(graphPos);
                 orbitControls.update();
                 statsParams.main_camera_x = mainCamera.position.x;
                 statsParams.main_camera_y = mainCamera.position.y;
@@ -340,4 +340,4 @@ class App extends Component {
     }
 }
 
-export default App;
+export default DMP;
