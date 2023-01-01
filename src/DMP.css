@@ -1,8 +1,8 @@
-.App {
+.DMP {
   text-align: center;
 }
 
-.App-header {
+.DMP-header {
   background-color: #282c34;
   min-height: 100vh;
   display: flex;
@@ -13,11 +13,11 @@
   color: black;
 }
 
-.App-link {
+.DMP-link {
   color: #61dafb;
 }
 
-@keyframes App-logo-spin {
+@keyframes DMP-logo-spin {
   from {
     transform: rotate(0deg);
   }

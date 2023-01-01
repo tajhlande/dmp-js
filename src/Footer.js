@@ -4,10 +4,10 @@ import {
     FooterLink,
 } from "./FooterStyles";
 
-const Footer = () => {
+const Footer = (props) => {
     return (
         <Box>
-            <FooterLink href="https://en.wikipedia.org/wiki/Lorenz_system" target="_blank" rel="noreferrer">What is the Lorenz attractor?</FooterLink>
+            <FooterLink href={props.url} target="_blank" rel="noreferrer">{props.text}</FooterLink>
          </Box>
     );
 };

@@ -1,4 +1,4 @@
-import './App.css';
+import './DMP.css';
 import React, {Component} from "react";
 import * as THREE from "three";
 import GUI from "lil-gui";
@@ -16,7 +16,6 @@ import Footer from "./Footer";
 const log = loglevel.getLogger("dmp");
 log.setLevel('debug');
 
-let gui = new GUI();
 
 const defaultStartPoint = new Vector3(0.1, 0.1, 0.1);
 const defaultLinePoints = [defaultStartPoint.x, defaultStartPoint.y, defaultStartPoint.z,
@@ -29,11 +28,8 @@ const defaultLorenzParams = {
     'rho': 28,
     'dt': 0.01
 };
-const lorenzParams = {
-    ...defaultLorenzParams
-};
 
-const controlParams = {
+const defaultControlParams = {
     'running': false,
     'iterations': 0,
     'maxIterations': 10000,
@@ -48,7 +44,7 @@ const controlParams = {
     'rideCameraZoom': 10
 }
 
-const statsParams = {
+const defaultStatsParams = {
     'main_camera_x': 0,
     'main_camera_y': 0,
     'main_camera_z': 0,
@@ -57,103 +53,8 @@ const statsParams = {
     'ride_camera_z': 0
 }
 
-let graphPos = new Vector3().copy( defaultStartPoint);
-let graphPts = [];
-graphPts.push(...defaultLinePoints);
-
-const graphMaterial = new LineMaterial( {
-    color: new Color().setHex(controlParams.graphColor),
-    linewidth: controlParams.lineThickness, // in world units with size attenuation, pixels otherwise
-    opacity: controlParams.opacity,
-    vertexColors: false,
-    dashed: false,
-    alphaToCoverage: true,
-} );
-let lineGeometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
-lineGeometry.setPositions(graphPts);
-let graphLine = new Line2(lineGeometry, graphMaterial);
-graphLine.scale.setScalar(1);
-graphLine.computeLineDistances();
-
-const cursorGeometry = new THREE.SphereGeometry( controlParams.lineThickness * 200, 8, 8 );
-const cursorMaterial = new THREE.MeshBasicMaterial( { color: 0xff00ff } );
-const cursor = new THREE.Mesh( cursorGeometry, cursorMaterial );
-cursor.position.copy(graphPos);
-
-const scene = new THREE.Scene();
-const renderer = new THREE.WebGLRenderer({antialias: true});
-const mainCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-const rideCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-rideCamera.position.set(0, 0, 0);
-let graphRoot = new THREE.Object3D();
-let axesRoot = new THREE.Object3D();
-scene.add(rideCamera);
-const rideCameraHelper = new CameraHelper(rideCamera);
-rideCameraHelper.visible = controlParams.showRideCameraFrustrum;
-scene.add(rideCameraHelper);
-
-
-function resetGraph() {
-    log.debug("Resetting graph");
-    controlParams.running = false;
-    scene.remove(graphRoot);
-    graphRoot = new THREE.Object3D();
-    scene.add(graphRoot);
-    graphPos.copy(defaultStartPoint);
-    graphPts = [];
-    graphPts.push(...defaultLinePoints);
-    lineGeometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
-    lineGeometry.setPositions(graphPts);
-    graphLine = new Line2(lineGeometry, graphMaterial);
-    graphRoot.add(graphLine);
-    controlParams.iterations = 0;
-    controlParams.cursorTracking = 'manual';
-    renderer.render(scene, mainCamera);
-}
-
-function resetLorenzParameters() {
-    log.debug("Resetting Lorenz parameters to defaults");
-    controlParams.running = false;
-    lorenzParams.sigma = defaultLorenzParams.sigma;
-    lorenzParams.beta = defaultLorenzParams.beta;
-    lorenzParams.rho = defaultLorenzParams.rho;
-    lorenzParams.dt = defaultLorenzParams.dt;
-}
-
-function setGraphColor() {
-    log.debug(`Setting graph color to ${controlParams.graphColor}`);
-    graphMaterial.color = new Color().setHex(controlParams.graphColor);
-}
-
-function setLineThickness() {
-    log.debug(`Setting line thickness to ${controlParams.lineThickness}`);
-    graphMaterial.linewidth = controlParams.lineThickness;
-}
-
-function setOpacity() {
-    log.debug(`Setting opacity to ${controlParams.opacity}`);
-    graphMaterial.opacity = controlParams.opacity;
-}
-
-function updateCursorVisibility() {
-    log.debug(`Setting cursor visibility to ${controlParams.showCursor}`);
-    cursor.visible = controlParams.showCursor;
-}
-
-function updateRideCamHelperVisibility() {
-    log.debug(`Setting ride camera helper visibility to ${controlParams.showRideCameraFrustrum}`);
-    rideCameraHelper.visible = controlParams.showRideCameraFrustrum;
-}
-
-function updateAxesVisibility() {
-    log.debug(`Setting axes visibility to ${controlParams.showAxes}`);
-    axesRoot.visible = controlParams.showAxes;
-}
-
 
 // set up gui button callbacks
-controlParams.resetGraph = resetGraph;
-controlParams.resetParameters = resetLorenzParameters;
 
 function advanceLorenz(lPos, lParams) {
     const x_dot = lParams.sigma * (lPos.y - lPos.x);
@@ -170,20 +71,159 @@ function advanceLorenz(lPos, lParams) {
 }
 
 class DMP extends Component {
+    gui;
+
+    lorenzParams = {
+        ...defaultLorenzParams
+    };
+
+    controlParams = {
+        ...defaultControlParams
+    };
+
+    statsParams = {
+        ...defaultStatsParams
+    };
+
+    graphPos = new Vector3().copy( defaultStartPoint);
+    graphPts = [];
+    graphMaterial;
+    lineGeometry;
+    graphLine;
+    cursor;
+
+    cursorGeometry;
+    cursorMaterial;
+
+    scene;
+    renderer;
+    mainCamera;
+    rideCamera;
+    graphRoot;
+    axesRoot;
+    rideCameraHelper;
+    orbitControls;
+    stats;
+    prevGraphPos = new Vector3().copy(this.graphPos);
+    constructor(props) {
+        super(props);
+
+        this.controlParams.resetGraph = this.resetGraph;
+        this.controlParams.resetParameters = this.resetLorenzParameters;
+
+        this.gui = new GUI();
+
+        this.graphPts.push(...defaultLinePoints);
+
+        this.graphMaterial = new LineMaterial( {
+            color: new Color().setHex(this.controlParams.graphColor),
+            linewidth: this.controlParams.lineThickness, // in world units with size attenuation, pixels otherwise
+            opacity: this.controlParams.opacity,
+            vertexColors: false,
+            dashed: false,
+            alphaToCoverage: true,
+        } );
+
+        this.lineGeometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
+        this.lineGeometry.setPositions(this.graphPts);
+
+        this.graphLine = new Line2(this.lineGeometry, this.graphMaterial);
+        this.graphLine.scale.setScalar(1);
+        this.graphLine.computeLineDistances();
+
+        this.cursorGeometry = new THREE.SphereGeometry( this.controlParams.lineThickness * 200, 8, 8 );
+        this.cursorMaterial = new THREE.MeshBasicMaterial( { color: 0xff00ff } );
+        this.cursor = new THREE.Mesh(this.cursorGeometry, this.cursorMaterial );
+        this.cursor.position.copy(this.graphPos);
+
+
+        this.scene = new THREE.Scene();
+        this.renderer = new THREE.WebGLRenderer({antialias: true});
+        this.mainCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.rideCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.rideCamera.position.set(0, 0, 0);
+        this.graphRoot = new THREE.Object3D();
+        this.axesRoot = new THREE.Object3D();
+        this.rideCameraHelper = new CameraHelper(this.rideCamera);
+
+
+        this.scene.add(this.rideCamera);
+        this.rideCameraHelper.visible = this.controlParams.showRideCameraFrustrum;
+        this.scene.add(this.rideCameraHelper);
+
+    }
+
+    resetGraph = () => {
+        log.debug("Resetting graph");
+        this.controlParams.running = false;
+        this.scene.remove(this.graphRoot);
+        this.graphRoot = new THREE.Object3D();
+        this.scene.add(this.graphRoot);
+        this.graphPos.copy(defaultStartPoint);
+        this.graphPts = [];
+        this.graphPts.push(...defaultLinePoints);
+        this.lineGeometry = new LineGeometry(); // the old way: new THREE.BufferGeometry().setFromPoints(points);
+        this.lineGeometry.setPositions(this.graphPts);
+        this.graphLine = new Line2(this.lineGeometry, this.graphMaterial);
+        this.graphRoot.add(this.graphLine);
+        this.controlParams.iterations = 0;
+        this.controlParams.cursorTracking = 'manual';
+        this.renderer.render(this.scene, this.mainCamera);
+    }
+
+    resetLorenzParameters = () => {
+        log.debug("Resetting Lorenz parameters to defaults");
+        this.controlParams.running = false;
+        this.lorenzParams.sigma = defaultLorenzParams.sigma;
+        this.lorenzParams.beta = defaultLorenzParams.beta;
+        this.lorenzParams.rho = defaultLorenzParams.rho;
+        this.lorenzParams.dt = defaultLorenzParams.dt;
+    }
+
+    setGraphColor = () => {
+        log.debug(`Setting graph color to ${this.controlParams.graphColor}`);
+        this.graphMaterial.color = new Color().setHex(this.controlParams.graphColor);
+    }
+
+    setLineThickness = () => {
+        log.debug(`Setting line thickness to ${this.controlParams.lineThickness}`);
+        this.graphMaterial.linewidth = this.controlParams.lineThickness;
+    }
+
+    setOpacity = () => {
+        log.debug(`Setting opacity to ${this.controlParams.opacity}`);
+        this.graphMaterial.opacity = this.controlParams.opacity;
+    }
+
+    updateCursorVisibility = () => {
+        log.debug(`Setting cursor visibility to ${this.controlParams.showCursor}`);
+        this.cursor.visible = this.controlParams.showCursor;
+    }
+
+    updateRideCamHelperVisibility = () => {
+        log.debug(`Setting ride camera helper visibility to ${this.controlParams.showRideCameraFrustrum}`);
+        this.rideCameraHelper.visible = this.controlParams.showRideCameraFrustrum;
+    }
+
+    updateAxesVisibility = () => {
+        log.debug(`Setting axes visibility to ${this.controlParams.showAxes}`);
+        this.axesRoot.visible = this.controlParams.showAxes;
+    }
+
 
     updateDimensions = () => {
         log.debug("Window resized");
         this.setState({ width: window.innerWidth, height: window.innerHeight });
-        mainCamera.aspect = window.innerWidth / window.innerHeight;
-        mainCamera.updateProjectionMatrix();
-        rideCamera.aspect = window.innerWidth / window.innerHeight;
-        rideCamera.updateProjectionMatrix();
-        rideCameraHelper.update();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        if (controlParams.cursorTracking === 'ride') {
-            renderer.render(scene, rideCamera);
+        this.mainCamera.aspect = window.innerWidth / window.innerHeight;
+        this.mainCamera.updateProjectionMatrix();
+        this.rideCamera.aspect = window.innerWidth / window.innerHeight;
+        this.rideCamera.updateProjectionMatrix();
+        this.rideCameraHelper.update();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        if (this.controlParams.cursorTracking === 'ride') {
+            this.renderer.render(this.scene, this.rideCamera);
         } else {
-            renderer.render(scene, mainCamera);
+            this.renderer.render(this.scene, this.mainCamera);
         }
     };
 
@@ -192,6 +232,67 @@ class DMP extends Component {
     //     controlParams.running = !controlParams.running;
     // }
 
+    animate = () => {
+        this.stats.begin();
+
+        if (this.controlParams.running && this.controlParams.iterations < this.controlParams.maxIterations) {
+            for (let i = 0; i < this.controlParams.iterationsPerFrame && this.controlParams.iterations < this.controlParams.maxIterations; i++) {
+                this.prevGraphPos = this.graphPos;
+                this.graphPos = advanceLorenz(this.graphPos, this.lorenzParams);
+                this.graphPts.push(this.graphPos.x, this.graphPos.y, this.graphPos.z);
+                this.controlParams.iterations++;
+            }
+            this.lineGeometry = new LineGeometry();
+            this.lineGeometry.setPositions(this.graphPts);
+            this.graphRoot.remove(this.graphLine);
+            this.graphLine = new Line2(this.lineGeometry, this.graphMaterial);
+            this.graphLine.scale.setScalar(1);
+            this.graphLine.computeLineDistances();
+            this.graphRoot.add(this.graphLine);
+            this.cursor.position.copy(this.graphPos);
+        }
+        else if (this.controlParams.iterations >= this.controlParams.maxIterations) {
+            this.controlParams.running = false;
+        }
+
+        // compute ride camera position and orientation regardless
+        let cameraSetback = new Vector3().subVectors(this.prevGraphPos, this.graphPos);
+        cameraSetback.normalize();
+        cameraSetback.multiplyScalar(this.controlParams.rideCameraZoom);
+        // log.debug(`Previous Lorentz position: (${prevLzPos.x}, ${prevLzPos.y}, ${prevLzPos.z})`);
+        // log.debug(`Lorentz position: (${lzPos.x}, ${lzPos.y}, ${lzPos.z})`);
+        // log.debug(`Ride cam setback position & length: (${cameraSetback.x}, ${cameraSetback.y}, ${cameraSetback.z}) ${cameraSetback.length()}`);
+        let rideCameraPos = new Vector3().addVectors(this.prevGraphPos, cameraSetback);
+        this.rideCamera.position.copy(rideCameraPos);
+        this.rideCamera.lookAt(this.graphPos);
+        this.statsParams.ride_camera_x = this.rideCamera.position.x;
+        this.statsParams.ride_camera_y = this.rideCamera.position.y;
+        this.statsParams.ride_camera_z = this.rideCamera.position.z;
+        // log.debug(`Ride cam actual position: (${rideCamera.position.x}, ${rideCamera.position.y}, ${rideCamera.position.z})`);
+        this.rideCameraHelper.update();
+
+        // align camera to cursor tracking parameter
+        if (this.controlParams.cursorTracking === 'follow') {
+            this.orbitControls.target.copy(this.graphPos);
+            this.orbitControls.update();
+            this.statsParams.main_camera_x = this.mainCamera.position.x;
+            this.statsParams.main_camera_y = this.mainCamera.position.y;
+            this.statsParams.main_camera_z = this.mainCamera.position.z;
+            this.renderer.render(this.scene, this.mainCamera);
+        } else if (this.controlParams.cursorTracking === 'ride') {
+            this.renderer.render(this.scene, this.rideCamera);
+        } else {  // manual
+            this.statsParams.main_camera_x = this.mainCamera.position.x;
+            this.statsParams.main_camera_y = this.mainCamera.position.y;
+            this.statsParams.main_camera_z = this.mainCamera.position.z;
+            this.renderer.render(this.scene, this.mainCamera);
+        }
+
+        requestAnimationFrame(this.animate);
+        this.stats.end();
+
+    };
+
     componentDidMount() {
         window.addEventListener('resize', this.updateDimensions);
 
@@ -199,138 +300,80 @@ class DMP extends Component {
         // 1) still listens to events handled by the GUI
         // 2) this needs to be responsive to a tap event and not other kinds of touch
         //window.addEventListener('touchstart', this.toggleRunning);
-        const orbitControls = new OrbitControls(mainCamera, renderer.domElement);
+        this.orbitControls = new OrbitControls(this.mainCamera, this.renderer.domElement);
 
-//      renderer.setPixelRatio( window.devicePixelRatio );
+        // renderer.setPixelRatio( window.devicePixelRatio );
         // renderer.setClearColor( 0x000000, 1.0 );
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
         // document.body.appendChild( renderer.domElement );
         // use ref as a mount point of the Three.js scene instead of the document.body
-        this.mount.appendChild(renderer.domElement);
+        this.mount.appendChild(this.renderer.domElement);
 
+        // set up three.js scene
         const axisProps = new AxisProperties();
         const axes = createAxes(axisProps);
 
-        axesRoot.add(...axes);
-        scene.add(axesRoot);
-        scene.add(graphRoot);
-        graphRoot.add(graphLine);
-        scene.add(cursor);
+        this.axesRoot.add(...axes);
+        this.scene.add(this.axesRoot);
+        this.scene.add(this.graphRoot);
+        this.graphRoot.add(this.graphLine);
+        this.scene.add(this.cursor);
 
-        mainCamera.position.z = 120;
-        orbitControls.update();
+        this.mainCamera.position.z = 120;
+        this.orbitControls.update();
 
-        let prevLzPos = graphPos;
-        let animate = function () {
-            stats.begin();
-
-            if (controlParams.running && controlParams.iterations < controlParams.maxIterations) {
-                for (let i = 0; i < controlParams.iterationsPerFrame && controlParams.iterations < controlParams.maxIterations; i++) {
-                    prevLzPos = graphPos;
-                    graphPos = advanceLorenz(graphPos, lorenzParams);
-                    graphPts.push(graphPos.x, graphPos.y, graphPos.z);
-                    controlParams.iterations++;
-                }
-                lineGeometry = new LineGeometry();
-                lineGeometry.setPositions(graphPts);
-                graphRoot.remove(graphLine);
-                graphLine = new Line2(lineGeometry, graphMaterial);
-                graphLine.scale.setScalar(1);
-                graphLine.computeLineDistances();
-                graphRoot.add(graphLine);
-                cursor.position.copy(graphPos);
-            }
-            else if (controlParams.iterations >= controlParams.maxIterations) {
-                controlParams.running = false;
-            }
-
-            // compute ride camera position and orientation regardless
-            let cameraSetback = new Vector3().subVectors(prevLzPos, graphPos);
-            cameraSetback.normalize();
-            cameraSetback.multiplyScalar(controlParams.rideCameraZoom);
-            // log.debug(`Previous Lorentz position: (${prevLzPos.x}, ${prevLzPos.y}, ${prevLzPos.z})`);
-            // log.debug(`Lorentz position: (${lzPos.x}, ${lzPos.y}, ${lzPos.z})`);
-            // log.debug(`Ride cam setback position & length: (${cameraSetback.x}, ${cameraSetback.y}, ${cameraSetback.z}) ${cameraSetback.length()}`);
-            let rideCameraPos = new Vector3().addVectors(prevLzPos, cameraSetback);
-            rideCamera.position.copy(rideCameraPos);
-            rideCamera.lookAt(graphPos);
-            statsParams.ride_camera_x = rideCamera.position.x;
-            statsParams.ride_camera_y = rideCamera.position.y;
-            statsParams.ride_camera_z = rideCamera.position.z;
-            // log.debug(`Ride cam actual position: (${rideCamera.position.x}, ${rideCamera.position.y}, ${rideCamera.position.z})`);
-            rideCameraHelper.update();
-
-            // align camera to cursor tracking parameter
-            if (controlParams.cursorTracking === 'follow') {
-                orbitControls.target.copy(graphPos);
-                orbitControls.update();
-                statsParams.main_camera_x = mainCamera.position.x;
-                statsParams.main_camera_y = mainCamera.position.y;
-                statsParams.main_camera_z = mainCamera.position.z;
-                renderer.render(scene, mainCamera);
-            } else if (controlParams.cursorTracking === 'ride') {
-                renderer.render(scene, rideCamera);
-            } else {  // manual
-              //  controls.target.set(0, 0, 0);
-                statsParams.main_camera_x = mainCamera.position.x;
-                statsParams.main_camera_y = mainCamera.position.y;
-                statsParams.main_camera_z = mainCamera.position.z;
-                renderer.render(scene, mainCamera);
-            }
-
-            requestAnimationFrame(animate);
-            stats.end();
-
-        };
-
-        gui.title("Controls");
-        const simControlsFolder = gui.addFolder('Simulation');
-        simControlsFolder.add(controlParams, 'running').name("Running").listen();
-        simControlsFolder.add(controlParams, 'iterations').name("Iterations").disable().listen();
-        simControlsFolder.add(controlParams, 'maxIterations', [1000, 10000, 100000]).name("Max Iterations");
-        simControlsFolder.add(controlParams, 'iterationsPerFrame', [1, 5, 10, 25, 100]).name("Iterations Per Frame");
-        simControlsFolder.add(controlParams, 'resetGraph').name("Reset Graph");
-        const viewControlsFolder = gui.addFolder('View');
-        viewControlsFolder.add(controlParams, 'lineThickness', 0.0001, 0.0100, 0.0001).name("Line Thickness").onChange(setLineThickness);
-        viewControlsFolder.addColor(controlParams, 'graphColor').name("Graph Color").listen().onChange(setGraphColor);
-        viewControlsFolder.add(controlParams, 'opacity', 0.01, 1.0, 0.01).name("Opacity").onChange(setOpacity);
-        viewControlsFolder.add(controlParams, 'showAxes').name("Show Axes").onChange(updateAxesVisibility);
-        viewControlsFolder.add(controlParams, 'showCursor').name("Show Cursor").onChange(updateCursorVisibility);
-        viewControlsFolder.add(controlParams, 'cursorTracking', ['manual', 'follow', 'ride']).name("Cursor Tracking");
-        viewControlsFolder.add(controlParams, 'showRideCameraFrustrum').name("Show Ride Cam Frustrum").onChange(updateRideCamHelperVisibility);
-        viewControlsFolder.add(controlParams, 'rideCameraZoom', 5, 100, 1).name("Ride Camera Zoom");
-        const parameterControlsFolder = gui.addFolder('Formula Parameters');
-        parameterControlsFolder.add(lorenzParams, 'sigma', 0.0001, 20, 0.1).name("&sigma;").listen();
-        parameterControlsFolder.add(lorenzParams, 'beta', 0.0001, 10, 0.001).name("&beta;").listen();
-        parameterControlsFolder.add(lorenzParams, 'rho', 0.0001, 100, 1).name("&rho;").listen();
-        parameterControlsFolder.add(lorenzParams, 'dt', 0.001, 0.03, 0.001).name("&delta;t").listen();
-        parameterControlsFolder.add(controlParams, 'resetParameters').name("Reset Parameters");
-        const camPositionsFolder = gui.addFolder('Camera Positions');
-        camPositionsFolder.add(statsParams, 'main_camera_x').name('Main Camera X').disable().listen();
-        camPositionsFolder.add(statsParams, 'main_camera_y').name('Main Camera Y').disable().listen();
-        camPositionsFolder.add(statsParams, 'main_camera_z').name('Main Camera Z').disable().listen();
-        camPositionsFolder.add(statsParams, 'ride_camera_x').name('Ride Camera X').disable().listen();
-        camPositionsFolder.add(statsParams, 'ride_camera_y').name('Ride Camera Y').disable().listen();
-        camPositionsFolder.add(statsParams, 'ride_camera_z').name('Ride Camera Z').disable().listen();
+        // set up gui
+        this.gui.title("Controls");
+        const simControlsFolder = this.gui.addFolder('Simulation');
+        simControlsFolder.add(this.controlParams, 'running').name("Running").listen();
+        simControlsFolder.add(this.controlParams, 'iterations').name("Iterations").disable().listen();
+        simControlsFolder.add(this.controlParams, 'maxIterations', [1000, 10000, 100000]).name("Max Iterations");
+        simControlsFolder.add(this.controlParams, 'iterationsPerFrame', [1, 5, 10, 25, 100]).name("Iterations Per Frame");
+        simControlsFolder.add(this.controlParams, 'resetGraph').name("Reset Graph");
+        const viewControlsFolder = this.gui.addFolder('View');
+        viewControlsFolder.add(this.controlParams, 'lineThickness', 0.0001, 0.0100, 0.0001).name("Line Thickness").onChange(this.setLineThickness);
+        viewControlsFolder.addColor(this.controlParams, 'graphColor').name("Graph Color").listen().onChange(this.setGraphColor);
+        viewControlsFolder.add(this.controlParams, 'opacity', 0.01, 1.0, 0.01).name("Opacity").onChange(this.setOpacity);
+        viewControlsFolder.add(this.controlParams, 'showAxes').name("Show Axes").onChange(this.updateAxesVisibility);
+        viewControlsFolder.add(this.controlParams, 'showCursor').name("Show Cursor").onChange(this.updateCursorVisibility);
+        viewControlsFolder.add(this.controlParams, 'cursorTracking', ['manual', 'follow', 'ride']).name("Cursor Tracking");
+        viewControlsFolder.add(this.controlParams, 'showRideCameraFrustrum').name("Show Ride Cam Frustrum").onChange(this.updateRideCamHelperVisibility);
+        viewControlsFolder.add(this.controlParams, 'rideCameraZoom', 5, 100, 1).name("Ride Camera Zoom");
+        this.createFunctionParamsGuiFolder(this.gui);
+        const camPositionsFolder = this.gui.addFolder('Camera Positions');
+        camPositionsFolder.add(this.statsParams, 'main_camera_x').name('Main Camera X').disable().listen();
+        camPositionsFolder.add(this.statsParams, 'main_camera_y').name('Main Camera Y').disable().listen();
+        camPositionsFolder.add(this.statsParams, 'main_camera_z').name('Main Camera Z').disable().listen();
+        camPositionsFolder.add(this.statsParams, 'ride_camera_x').name('Ride Camera X').disable().listen();
+        camPositionsFolder.add(this.statsParams, 'ride_camera_y').name('Ride Camera Y').disable().listen();
+        camPositionsFolder.add(this.statsParams, 'ride_camera_z').name('Ride Camera Z').disable().listen();
         camPositionsFolder.close();
 
+        this.stats = new Stats();
 
-        const stats = new Stats();
-        document.body.appendChild(stats.domElement);
+        document.body.appendChild(this.stats.domElement);
 
-        const gpuPanel = new GPUStatsPanel(renderer.getContext());
-        stats.addPanel(gpuPanel);
-        stats.showPanel(0);
+        const gpuPanel = new GPUStatsPanel(this.renderer.getContext());
+        this.stats.addPanel(gpuPanel);
+        this.stats.showPanel(0);
 
+        this.animate();
+    }
 
-        animate();
+    createFunctionParamsGuiFolder(gui) {
+        const parameterControlsFolder = gui.addFolder('Formula Parameters');
+        parameterControlsFolder.add(this.lorenzParams, 'sigma', 0.0001, 20, 0.1).name("&sigma;").listen();
+        parameterControlsFolder.add(this.lorenzParams, 'beta', 0.0001, 10, 0.001).name("&beta;").listen();
+        parameterControlsFolder.add(this.lorenzParams, 'rho', 0.0001, 100, 1).name("&rho;").listen();
+        parameterControlsFolder.add(this.lorenzParams, 'dt', 0.001, 0.03, 0.001).name("&delta;t").listen();
+        parameterControlsFolder.add(this.controlParams, 'resetParameters').name("Reset Parameters");
     }
 
     render() {
         return (
             <div>
                 <div ref={ref => (this.mount = ref)}/>
-                <Footer />
+                <Footer url={"https://en.wikipedia.org/wiki/Lorenz_system"} text={"What is the Lorenz attractor?"} />
             </div>
         )
     }
