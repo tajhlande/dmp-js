@@ -112,8 +112,9 @@ class DMP extends Component {
         this.prevGraphPos = new Vector3().copy(this.graphPos);
         this.graphPts = [];
 
+        // bind callback methods for the two buttons
         this.controlParams.resetGraph = this.resetGraph;
-        this.controlParams.resetParameters = this.resetFunctionParameters;
+        this.controlParams.resetParameters = this.resetFunctionParametersCallback;
 
         this.gui = new GUI();
 
@@ -177,11 +178,18 @@ class DMP extends Component {
     }
 
     /**
-     * Override this for your specific function
+     * Do not override this method, it is used to bind the callback for the button
+     */
+    resetFunctionParametersCallback = () => {
+        this.controlParams.running = false;
+        this.resetFunctionParameters();
+    }
+
+    /**
+     * Override this for your specific function.
      */
     resetFunctionParameters = () => {
         log.debug("Resetting Lorenz parameters to defaults");
-        this.controlParams.running = false;
         this.lorenzParams.sigma = defaultLorenzParams.sigma;
         this.lorenzParams.beta = defaultLorenzParams.beta;
         this.lorenzParams.rho = defaultLorenzParams.rho;
@@ -331,12 +339,14 @@ class DMP extends Component {
 
         // set up gui
         this.gui.title("Controls");
+
         const simControlsFolder = this.gui.addFolder('Simulation');
         simControlsFolder.add(this.controlParams, 'running').name("Running").listen();
         simControlsFolder.add(this.controlParams, 'iterations').name("Iterations").disable().listen();
         simControlsFolder.add(this.controlParams, 'maxIterations', [1000, 10000, 100000]).name("Max Iterations");
         simControlsFolder.add(this.controlParams, 'iterationsPerFrame', [1, 5, 10, 25, 100]).name("Iterations Per Frame");
         simControlsFolder.add(this.controlParams, 'resetGraph').name("Reset Graph");
+
         const viewControlsFolder = this.gui.addFolder('View');
         viewControlsFolder.add(this.controlParams, 'lineThickness', 0.0001, 0.0100, 0.0001).name("Line Thickness").onChange(this.setLineThickness);
         viewControlsFolder.addColor(this.controlParams, 'graphColor').name("Graph Color").listen().onChange(this.setGraphColor);
@@ -346,7 +356,10 @@ class DMP extends Component {
         viewControlsFolder.add(this.controlParams, 'cursorTracking', ['manual', 'follow', 'ride']).name("Cursor Tracking");
         viewControlsFolder.add(this.controlParams, 'showRideCameraFrustrum').name("Show Ride Cam Frustrum").onChange(this.updateRideCamHelperVisibility);
         viewControlsFolder.add(this.controlParams, 'rideCameraZoom', 5, 100, 1).name("Ride Camera Zoom");
-        this.createFunctionParamsGuiFolder(this.gui);
+
+        let paramsControlFolder = this.createFunctionParamsGuiFolder(this.gui);
+        paramsControlFolder.add(this.controlParams, 'resetParameters').name("Reset Parameters");
+
         const camPositionsFolder = this.gui.addFolder('Camera Positions');
         camPositionsFolder.add(this.statsParams, 'main_camera_x').name('Main Camera X').disable().listen();
         camPositionsFolder.add(this.statsParams, 'main_camera_y').name('Main Camera Y').disable().listen();
@@ -371,7 +384,7 @@ class DMP extends Component {
      * Advance the dynamic function.
      * Override this method to implement it differently.
      *
-     * @param pos The current position
+     * @param pos The current position, as a `Vector3`
      * @returns {Vector3}  The new position
      */
     advanceGraph(pos) {
@@ -392,6 +405,7 @@ class DMP extends Component {
      * Override this method to add formula specific parameters.
      *
      * @param gui The gui object to which we are adding our specific folders
+     * @return the new folder created
      */
     createFunctionParamsGuiFolder(gui) {
         const parameterControlsFolder = gui.addFolder('Formula Parameters');
@@ -399,7 +413,7 @@ class DMP extends Component {
         parameterControlsFolder.add(this.lorenzParams, 'beta', 0.0001, 10, 0.001).name("&beta;").listen();
         parameterControlsFolder.add(this.lorenzParams, 'rho', 0.0001, 100, 1).name("&rho;").listen();
         parameterControlsFolder.add(this.lorenzParams, 'dt', 0.001, 0.03, 0.001).name("&delta;t").listen();
-        parameterControlsFolder.add(this.controlParams, 'resetParameters').name("Reset Parameters");
+        return parameterControlsFolder;
     }
 
     /**
