@@ -21,6 +21,10 @@ const defaultStartPoint = new Vector3(0.1, 0.1, 0.1);
 const defaultLinePoints = [defaultStartPoint.x, defaultStartPoint.y, defaultStartPoint.z,
     defaultStartPoint.x, defaultStartPoint.y, defaultStartPoint.z];
 
+/**
+ * Move to subclass
+ * @type {{sigma: number, dt: number, rho: number, beta: number}}
+ */
 const defaultLorenzParams = {
     // lorenz used the values σ = 10, β = 8/3 and ρ = 28, so these are our defaults
     'sigma': 10,
@@ -53,26 +57,16 @@ const defaultStatsParams = {
     'ride_camera_z': 0
 }
 
-
-// set up gui button callbacks
-
-function advanceLorenz(lPos, lParams) {
-    const x_dot = lParams.sigma * (lPos.y - lPos.x);
-    const y_dot = lPos.x * (lParams.rho - lPos.z) -  lPos.y
-    const z_dot = lPos.x * lPos.y - lParams.beta * lPos.z;
-
-    // log.debug(`Lorenz gradient: (${x_dot}, ${y_dot}, ${z_dot})`);
-
-    return new Vector3(
-        lPos.x + (x_dot * lParams.dt),
-        lPos.y + (y_dot * lParams.dt),
-        lPos.z + (z_dot * lParams.dt)
-    );
-}
-
+/**
+ * Generic superclass component with common functions for graph rendering, GUI, and simulation control.
+ */
 class DMP extends Component {
     gui;
 
+    /**
+     * Move to subclass
+     * @type {{sigma: number, dt: number, rho: number, beta}}
+     */
     lorenzParams = {
         ...defaultLorenzParams
     };
@@ -85,8 +79,8 @@ class DMP extends Component {
         ...defaultStatsParams
     };
 
-    graphPos = new Vector3().copy( defaultStartPoint);
-    graphPts = [];
+    graphPos;
+    graphPts;
     graphMaterial;
     lineGeometry;
     graphLine;
@@ -104,12 +98,22 @@ class DMP extends Component {
     rideCameraHelper;
     orbitControls;
     stats;
-    prevGraphPos = new Vector3().copy(this.graphPos);
+    prevGraphPos;
+
+    /**
+     * Standard React component constructor
+     * @class
+     * @param {Readonly<P>|P} props
+     */
     constructor(props) {
         super(props);
 
+        this.graphPos = new Vector3().copy(defaultStartPoint);
+        this.prevGraphPos = new Vector3().copy(this.graphPos);
+        this.graphPts = [];
+
         this.controlParams.resetGraph = this.resetGraph;
-        this.controlParams.resetParameters = this.resetLorenzParameters;
+        this.controlParams.resetParameters = this.resetFunctionParameters;
 
         this.gui = new GUI();
 
@@ -153,6 +157,7 @@ class DMP extends Component {
 
     }
 
+    // GUI callback methods follow
     resetGraph = () => {
         log.debug("Resetting graph");
         this.controlParams.running = false;
@@ -171,7 +176,10 @@ class DMP extends Component {
         this.renderer.render(this.scene, this.mainCamera);
     }
 
-    resetLorenzParameters = () => {
+    /**
+     * Override this for your specific function
+     */
+    resetFunctionParameters = () => {
         log.debug("Resetting Lorenz parameters to defaults");
         this.controlParams.running = false;
         this.lorenzParams.sigma = defaultLorenzParams.sigma;
@@ -227,18 +235,13 @@ class DMP extends Component {
         }
     };
 
-    // toggleRunning = () => {
-    //     log.debug("Window touch started");
-    //     controlParams.running = !controlParams.running;
-    // }
-
     animate = () => {
         this.stats.begin();
 
         if (this.controlParams.running && this.controlParams.iterations < this.controlParams.maxIterations) {
             for (let i = 0; i < this.controlParams.iterationsPerFrame && this.controlParams.iterations < this.controlParams.maxIterations; i++) {
                 this.prevGraphPos = this.graphPos;
-                this.graphPos = advanceLorenz(this.graphPos, this.lorenzParams);
+                this.graphPos = this.advanceGraph(this.graphPos);
                 this.graphPts.push(this.graphPos.x, this.graphPos.y, this.graphPos.z);
                 this.controlParams.iterations++;
             }
@@ -288,25 +291,29 @@ class DMP extends Component {
             this.renderer.render(this.scene, this.mainCamera);
         }
 
+        // tell the browser to call this method again
         requestAnimationFrame(this.animate);
-        this.stats.end();
 
+        this.stats.end();
     };
 
     componentDidMount() {
         window.addEventListener('resize', this.updateDimensions);
 
-        // two problems with the line commented out below:
-        // 1) still listens to events handled by the GUI
+        // wanted to implement tap to start/stop the simulation on touch devices, but
+        // there are two problems with the line commented out below:
+        // 1) the event handler still receives and listens to events handled by the GUI
         // 2) this needs to be responsive to a tap event and not other kinds of touch
+        // a third party library is probably needed here
         //window.addEventListener('touchstart', this.toggleRunning);
         this.orbitControls = new OrbitControls(this.mainCamera, this.renderer.domElement);
 
         // renderer.setPixelRatio( window.devicePixelRatio );
         // renderer.setClearColor( 0x000000, 1.0 );
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        // to make this three.js code React friendly, we don't do this:
         // document.body.appendChild( renderer.domElement );
-        // use ref as a mount point of the Three.js scene instead of the document.body
+        // instead, we use ref as a mount point of the Three.js scene instead of the document.body
         this.mount.appendChild(this.renderer.domElement);
 
         // set up three.js scene
@@ -349,17 +356,43 @@ class DMP extends Component {
         camPositionsFolder.add(this.statsParams, 'ride_camera_z').name('Ride Camera Z').disable().listen();
         camPositionsFolder.close();
 
+        // set up framerate & other stats to be visible
         this.stats = new Stats();
-
         document.body.appendChild(this.stats.domElement);
-
         const gpuPanel = new GPUStatsPanel(this.renderer.getContext());
         this.stats.addPanel(gpuPanel);
         this.stats.showPanel(0);
 
+        // start the three.js animation
         this.animate();
     }
 
+    /**
+     * Advance the dynamic function.
+     * Override this method to implement it differently.
+     *
+     * @param pos The current position
+     * @returns {Vector3}  The new position
+     */
+    advanceGraph(pos) {
+        const x_dot = this.lorenzParams.sigma * (pos.y - pos.x);
+        const y_dot = pos.x * (this.lorenzParams.rho - pos.z) -  pos.y
+        const z_dot = pos.x * pos.y - this.lorenzParams.beta * pos.z;
+
+        // log.debug(`Lorenz gradient: (${x_dot}, ${y_dot}, ${z_dot})`);
+
+        return new Vector3(
+            pos.x + (x_dot * this.lorenzParams.dt),
+            pos.y + (y_dot * this.lorenzParams.dt),
+            pos.z + (z_dot * this.lorenzParams.dt)
+        );
+    }
+
+    /**
+     * Override this method to add formula specific parameters.
+     *
+     * @param gui The gui object to which we are adding our specific folders
+     */
     createFunctionParamsGuiFolder(gui) {
         const parameterControlsFolder = gui.addFolder('Formula Parameters');
         parameterControlsFolder.add(this.lorenzParams, 'sigma', 0.0001, 20, 0.1).name("&sigma;").listen();
@@ -369,11 +402,23 @@ class DMP extends Component {
         parameterControlsFolder.add(this.controlParams, 'resetParameters').name("Reset Parameters");
     }
 
+    /**
+     * Override this to display a custom link in the footer for the specific dynamic function
+     * @returns {{text: string, url: string}}
+     */
+    getFooterText() {
+        return {
+            url: "https://en.wikipedia.org/wiki/Lorenz_system",
+            text: "What is the Lorenz attractor?"
+        }
+    }
+
     render() {
+        const footer = this.getFooterText();
         return (
             <div>
                 <div ref={ref => (this.mount = ref)}/>
-                <Footer url={"https://en.wikipedia.org/wiki/Lorenz_system"} text={"What is the Lorenz attractor?"} />
+                <Footer url={footer.url} text={footer.text} />
             </div>
         )
     }
