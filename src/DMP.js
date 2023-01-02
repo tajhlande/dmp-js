@@ -317,7 +317,7 @@ class DMP extends Component {
         const simControlsFolder = this.gui.addFolder('Simulation');
         simControlsFolder.add(this.controlParams, 'running').name("Running").listen();
         simControlsFolder.add(this.controlParams, 'iterations').name("Iterations").disable().listen();
-        simControlsFolder.add(this.controlParams, 'maxIterations', [1000, 10000, 100000]).name("Max Iterations");
+        simControlsFolder.add(this.controlParams, 'maxIterations', [1000, 5000, 10000, 25000, 50000, 75000, 100000]).name("Max Iterations");
         simControlsFolder.add(this.controlParams, 'iterationsPerFrame', [1, 5, 10, 25, 100]).name("Iterations Per Frame");
         simControlsFolder.add(this.controlParams, 'resetGraph').name("Reset Graph");
 
