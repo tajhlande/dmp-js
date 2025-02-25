@@ -3,9 +3,9 @@
 
 ### To run locally 
 
-`npm start`
+`npm run dev`
 
-then it will open [http://localhost:3000](http://localhost:3000)
+then it will open http://localhost:5173/](http://localhost:5173/)
 
 ### To build production version
 
