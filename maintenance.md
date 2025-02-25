@@ -5,13 +5,13 @@
 
 `npm run dev`
 
-then it will open http://localhost:5173/](http://localhost:5173/)
+then it will open [http://localhost:5173/](http://localhost:5173/)
 
 ### To build production version
 
 `npm run build`
 
-### To publish to Github Pages
+### To publish to GitHub Pages
 
 `npm run deploy`
 
